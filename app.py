@@ -33,6 +33,13 @@ with app.app_context():
     import models
     db.create_all()
 
+# Add custom JSON filter for templates
+import json
+
+@app.template_filter('tojsonpretty')
+def to_json_pretty(value):
+    return json.dumps(value, ensure_ascii=False, indent=2)
+
 # Import and register routes
 from routes import *
 

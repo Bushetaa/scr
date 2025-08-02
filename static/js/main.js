@@ -10,7 +10,7 @@ class AcademicCrawlerApp {
     init() {
         this.bindEvents();
         this.updateUI();
-        this.startStatusPolling();
+        // Remove status polling since we're showing static data
     }
 
     bindEvents() {
