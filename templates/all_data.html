@@ -212,7 +212,7 @@
             <ul class="pagination pagination-custom justify-content-center">
                 {% if pagination.has_prev %}
                 <li class="page-item">
-                    <a class="page-link" href="{{ url_for('all_data', page=pagination.prev_num, **request.args) }}">
+                    <a class="page-link" href="{{ url_for('all_data', page=pagination.prev_num, search=request.args.get('search'), field=request.args.get('field'), type=request.args.get('type')) }}">
                         <i class="fas fa-chevron-right"></i>
                     </a>
                 </li>
@@ -222,7 +222,7 @@
                     {% if page_num %}
                         {% if page_num != pagination.page %}
                         <li class="page-item">
-                            <a class="page-link" href="{{ url_for('all_data', page=page_num, **request.args) }}">{{ page_num }}</a>
+                            <a class="page-link" href="{{ url_for('all_data', page=page_num, search=request.args.get('search'), field=request.args.get('field'), type=request.args.get('type')) }}">{{ page_num }}</a>
                         </li>
                         {% else %}
                         <li class="page-item active">
@@ -238,7 +238,7 @@
                 
                 {% if pagination.has_next %}
                 <li class="page-item">
-                    <a class="page-link" href="{{ url_for('all_data', page=pagination.next_num, **request.args) }}">
+                    <a class="page-link" href="{{ url_for('all_data', page=pagination.next_num, search=request.args.get('search'), field=request.args.get('field'), type=request.args.get('type')) }}">
                         <i class="fas fa-chevron-left"></i>
                     </a>
                 </li>
@@ -248,11 +248,20 @@
         {% endif %}
 
         <!-- Empty State -->
-        {% if not items %}
+        {% if not items and (request.args.get('search') or request.args.get('field') or request.args.get('type')) %}
         <div class="text-center py-5">
             <i class="fas fa-search fa-3x text-muted mb-3"></i>
             <h4 class="text-muted">لا توجد نتائج</h4>
             <p class="text-muted">جرب تغيير معايير البحث أو الفلاتر</p>
+            <button class="btn btn-outline-primary mt-3" onclick="window.location.href='{{ url_for('all_data') }}'">
+                <i class="fas fa-refresh me-2"></i>عرض جميع البيانات
+            </button>
+        </div>
+        {% elif not items %}
+        <div class="text-center py-5">
+            <i class="fas fa-database fa-3x text-muted mb-3"></i>
+            <h4 class="text-muted">لا توجد بيانات متاحة</h4>
+            <p class="text-muted">يرجى المحاولة مرة أخرى لاحقاً</p>
         </div>
         {% endif %}
     </div>

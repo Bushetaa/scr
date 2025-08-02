@@ -147,11 +147,12 @@ def all_data():
         # Build query
         query = AcademicContent.query
         
-        # Apply search filter
+        # Apply search filter (case insensitive)
         if search_query:
             query = query.filter(
-                AcademicContent.title.contains(search_query) |
-                AcademicContent.summary.contains(search_query)
+                (AcademicContent.title.contains(search_query)) |
+                (AcademicContent.summary.contains(search_query)) |
+                (AcademicContent.field.contains(search_query))
             )
         
         # Apply field filter
