@@ -40,6 +40,13 @@ import json
 def to_json_pretty(value):
     return json.dumps(value, ensure_ascii=False, indent=2)
 
+@app.template_filter('number_format')
+def number_format(value):
+    """Format numbers with thousands separator"""
+    if isinstance(value, (int, float)):
+        return "{:,}".format(value)
+    return value
+
 # Import and register routes
 from routes import *
 

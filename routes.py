@@ -127,6 +127,99 @@ def get_data_by_field(field):
         logger.error(f"Error filtering by field {field}: {e}")
         return jsonify({'error': 'خطأ في استرجاع البيانات'}), 500
 
+@app.route('/all-data')
+def all_data():
+    """Display all academic data with pagination and filters"""
+    from models import AcademicContent
+    import json
+    
+    try:
+        # Get pagination parameters
+        page = request.args.get('page', 1, type=int)
+        per_page = 24  # Items per page
+        
+        # Get filter parameters
+        search_query = request.args.get('search', '').strip()
+        field_filter = request.args.get('field', '').strip()
+        type_filter = request.args.get('type', '').strip()
+        
+        # Build query
+        query = AcademicContent.query
+        
+        # Apply search filter
+        if search_query:
+            query = query.filter(
+                db.or_(
+                    AcademicContent.title.contains(search_query),
+                    AcademicContent.summary.contains(search_query)
+                )
+            )
+        
+        # Apply field filter
+        if field_filter:
+            query = query.filter(AcademicContent.field == field_filter)
+            
+        # Apply type filter
+        if type_filter:
+            query = query.filter(AcademicContent.type == type_filter)
+        
+        # Order by date (newest first) then by id
+        query = query.order_by(AcademicContent.date.desc(), AcademicContent.id.desc())
+        
+        # Paginate
+        pagination = query.paginate(
+            page=page, 
+            per_page=per_page, 
+            error_out=False
+        )
+        
+        items = pagination.items
+        
+        # Process items for template
+        processed_items = []
+        for item in items:
+            processed_item = {
+                'id': item.id,
+                'type': item.type,
+                'title': item.title,
+                'field': item.field,
+                'date': item.date,
+                'location': item.location,
+                'summary': item.summary,
+                'source_url': item.source_url,
+                'crawled_at': item.crawled_at,
+                'key_people_list': json.loads(item.key_people) if item.key_people else [],
+                'verified_facts_list': json.loads(item.verified_facts) if item.verified_facts else []
+            }
+            processed_items.append(processed_item)
+        
+        # Get unique fields and types for filters
+        fields = db.session.query(AcademicContent.field.distinct()).all()
+        fields = [field[0] for field in fields]
+        
+        types = db.session.query(AcademicContent.type.distinct()).all()
+        types = [type_[0] for type_ in types]
+        
+        # Get total count
+        total_count = AcademicContent.query.count()
+        
+        return render_template('all_data.html',
+                             items=processed_items,
+                             pagination=pagination,
+                             fields=sorted(fields),
+                             types=sorted(types),
+                             total_count=total_count)
+        
+    except Exception as e:
+        logger.error(f"Error in all_data route: {str(e)}")
+        return render_template('all_data.html',
+                             items=[],
+                             pagination=None,
+                             fields=[],
+                             types=[],
+                             total_count=0,
+                             error=str(e))
+
 @app.route('/download_json')
 def download_json():
     """Download all data as JSON file"""

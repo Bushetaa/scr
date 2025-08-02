@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>جميع البيانات الأكاديمية - API استخراج المحتوى التعليمي</title>
+    
+    <!-- Bootstrap RTL CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- Custom CSS -->
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    
+    <style>
+        .data-card {
+            transition: transform 0.2s;
+            border-right: 4px solid #007bff;
+        }
+        .data-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .field-badge {
+            font-size: 0.85em;
+            padding: 0.25rem 0.5rem;
+        }
+        .search-box {
+            border-radius: 25px;
+            border: 2px solid #007bff;
+        }
+        .search-box:focus {
+            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        }
+        .filter-section {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 10px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        .pagination-custom .page-link {
+            border-radius: 50px;
+            margin: 0 2px;
+        }
+        .loading-spinner {
+            display: none;
+            text-align: center;
+            padding: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('index') }}">
+                <i class="fas fa-database me-2"></i>
+                API استخراج المحتوى التعليمي
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="{{ url_for('index') }}">
+                    <i class="fas fa-home me-1"></i>الرئيسية
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- Header Section -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="text-center">
+                    <h1 class="display-4 text-primary">
+                        <i class="fas fa-book-open me-3"></i>
+                        جميع البيانات الأكاديمية
+                    </h1>
+                    <p class="lead text-muted">
+                        تصفح {{ total_count | number_format }} عنصر تعليمي وعلمي من مصادر أكاديمية موثوقة
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filters and Search -->
+        <div class="filter-section">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="input-group">
+                        <span class="input-group-text bg-primary text-white">
+                            <i class="fas fa-search"></i>
+                        </span>
+                        <input type="text" id="searchInput" class="form-control search-box" 
+                               placeholder="ابحث في العناوين والملخصات..." value="{{ request.args.get('search', '') }}">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <select id="fieldFilter" class="form-select">
+                        <option value="">جميع المجالات</option>
+                        {% for field in fields %}
+                        <option value="{{ field }}" {% if request.args.get('field') == field %}selected{% endif %}>
+                            {{ field }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <select id="typeFilter" class="form-select">
+                        <option value="">جميع الأنواع</option>
+                        {% for type in types %}
+                        <option value="{{ type }}" {% if request.args.get('type') == type %}selected{% endif %}>
+                            {{ type }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="row mt-2">
+                <div class="col-12 text-center">
+                    <button id="applyFilters" class="btn btn-primary">
+                        <i class="fas fa-filter me-2"></i>تطبيق الفلاتر
+                    </button>
+                    <button id="clearFilters" class="btn btn-outline-secondary ms-2">
+                        <i class="fas fa-times me-2"></i>مسح الفلاتر
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats Bar -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="alert alert-info d-flex justify-content-between align-items-center">
+                    <span>
+                        <i class="fas fa-info-circle me-2"></i>
+                        عرض {{ items|length }} من أصل {{ total_count | number_format }} عنصر
+                        {% if request.args.get('search') %}
+                        | البحث عن: "{{ request.args.get('search') }}"
+                        {% endif %}
+                        {% if request.args.get('field') %}
+                        | المجال: {{ request.args.get('field') }}
+                        {% endif %}
+                    </span>
+                    <div>
+                        <a href="{{ url_for('download_json') }}" class="btn btn-success btn-sm">
+                            <i class="fas fa-download me-1"></i>تحميل JSON
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading Spinner -->
+        <div id="loadingSpinner" class="loading-spinner">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">جاري التحميل...</span>
+            </div>
+            <p class="mt-2">جاري تحميل البيانات...</p>
+        </div>
+
+        <!-- Data Cards -->
+        <div id="dataContainer">
+            <div class="row" id="dataGrid">
+                {% for item in items %}
+                <div class="col-lg-6 col-xl-4 mb-4">
+                    <div class="card data-card h-100">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <span class="badge bg-primary field-badge">{{ item.field }}</span>
+                            <small class="text-muted">{{ item.date }}</small>
+                        </div>
+                        <div class="card-body">
+                            <h6 class="card-title text-primary">{{ item.title }}</h6>
+                            <p class="card-text small text-muted mb-3">
+                                {{ item.summary[:200] }}{% if item.summary|length > 200 %}...{% endif %}
+                            </p>
+                            
+                            {% if item.key_people_list %}
+                            <div class="mb-2">
+                                <small class="fw-bold text-secondary">الشخصيات المهمة:</small>
+                                <div>
+                                    {% for person in item.key_people_list %}
+                                    <span class="badge bg-light text-dark me-1">{{ person }}</span>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endif %}
+                            
+                            {% if item.verified_facts_list %}
+                            <div class="mb-2">
+                                <small class="fw-bold text-secondary">حقائق مؤكدة:</small>
+                                <ul class="list-unstyled small">
+                                    {% for fact in item.verified_facts_list[:2] %}
+                                    <li><i class="fas fa-check-circle text-success me-1"></i>{{ fact }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="card-footer">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="badge bg-secondary">{{ item.type }}</span>
+                                <small class="text-muted">{{ item.location }}</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Pagination -->
+        {% if pagination.pages > 1 %}
+        <nav aria-label="تنقل الصفحات">
+            <ul class="pagination pagination-custom justify-content-center">
+                {% if pagination.has_prev %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('all_data', page=pagination.prev_num, **request.args) }}">
+                        <i class="fas fa-chevron-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+                
+                {% for page_num in pagination.iter_pages() %}
+                    {% if page_num %}
+                        {% if page_num != pagination.page %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('all_data', page=page_num, **request.args) }}">{{ page_num }}</a>
+                        </li>
+                        {% else %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ page_num }}</span>
+                        </li>
+                        {% endif %}
+                    {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link">…</span>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if pagination.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('all_data', page=pagination.next_num, **request.args) }}">
+                        <i class="fas fa-chevron-left"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+
+        <!-- Empty State -->
+        {% if not items %}
+        <div class="text-center py-5">
+            <i class="fas fa-search fa-3x text-muted mb-3"></i>
+            <h4 class="text-muted">لا توجد نتائج</h4>
+            <p class="text-muted">جرب تغيير معايير البحث أو الفلاتر</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const searchInput = document.getElementById('searchInput');
+            const fieldFilter = document.getElementById('fieldFilter');
+            const typeFilter = document.getElementById('typeFilter');
+            const applyButton = document.getElementById('applyFilters');
+            const clearButton = document.getElementById('clearFilters');
+            const loadingSpinner = document.getElementById('loadingSpinner');
+            const dataContainer = document.getElementById('dataContainer');
+
+            // Apply filters
+            applyButton.addEventListener('click', function() {
+                applyFilters();
+            });
+
+            // Clear filters
+            clearButton.addEventListener('click', function() {
+                searchInput.value = '';
+                fieldFilter.value = '';
+                typeFilter.value = '';
+                applyFilters();
+            });
+
+            // Enter key search
+            searchInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    applyFilters();
+                }
+            });
+
+            function applyFilters() {
+                showLoading();
+                
+                const params = new URLSearchParams();
+                
+                if (searchInput.value.trim()) {
+                    params.set('search', searchInput.value.trim());
+                }
+                if (fieldFilter.value) {
+                    params.set('field', fieldFilter.value);
+                }
+                if (typeFilter.value) {
+                    params.set('type', typeFilter.value);
+                }
+                
+                const url = '{{ url_for("all_data") }}' + (params.toString() ? '?' + params.toString() : '');
+                window.location.href = url;
+            }
+
+            function showLoading() {
+                loadingSpinner.style.display = 'block';
+                dataContainer.style.opacity = '0.5';
+            }
+        });
+
+        // Number formatting function
+        function numberFormat(num) {
+            return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        }
+    </script>
+</body>
+</html>
