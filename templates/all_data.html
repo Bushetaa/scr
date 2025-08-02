@@ -207,7 +207,7 @@
         </div>
 
         <!-- Pagination -->
-        {% if pagination.pages > 1 %}
+        {% if pagination and pagination.pages > 1 %}
         <nav aria-label="تنقل الصفحات">
             <ul class="pagination pagination-custom justify-content-center">
                 {% if pagination.has_prev %}

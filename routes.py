@@ -131,6 +131,7 @@ def get_data_by_field(field):
 def all_data():
     """Display all academic data with pagination and filters"""
     from models import AcademicContent
+    from app import db
     import json
     
     try:
@@ -149,10 +150,8 @@ def all_data():
         # Apply search filter
         if search_query:
             query = query.filter(
-                db.or_(
-                    AcademicContent.title.contains(search_query),
-                    AcademicContent.summary.contains(search_query)
-                )
+                AcademicContent.title.contains(search_query) |
+                AcademicContent.summary.contains(search_query)
             )
         
         # Apply field filter
