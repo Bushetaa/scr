@@ -36,7 +36,8 @@ ENV/
 .env.local
 
 # Instance folder
-instance/
+# instance/
+!instance/academic_data.db
 
 # Logs
 logs/
